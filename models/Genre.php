@@ -12,7 +12,12 @@ class Genre {
 
     // Lister tous les genres
     public function listerTous() {
-        $sql = "SELECT * FROM {$this->table} ORDER BY nom_genre";
+        $sql = "SELECT g.*, 
+                       COUNT(l.id_livre) as nb_livres 
+                FROM {$this->table} g 
+                LEFT JOIN livres l ON g.id_genre = l.id_genre 
+                GROUP BY g.id_genre, g.nom_genre, g.description 
+                ORDER BY g.nom_genre";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();
@@ -58,9 +63,13 @@ class Genre {
 
     // Rechercher des genres
     public function rechercher($terme) {
-        $sql = "SELECT * FROM {$this->table} 
-                WHERE nom_genre LIKE ? OR description LIKE ?
-                ORDER BY nom_genre";
+        $sql = "SELECT g.*, 
+                       COUNT(l.id_livre) as nb_livres 
+                FROM {$this->table} g 
+                LEFT JOIN livres l ON g.id_genre = l.id_genre 
+                WHERE g.nom_genre LIKE ? OR g.description LIKE ?
+                GROUP BY g.id_genre, g.nom_genre, g.description 
+                ORDER BY g.nom_genre";
         $terme = "%{$terme}%";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$terme, $terme]);

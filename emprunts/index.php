@@ -7,19 +7,32 @@ $empruntModel = new Emprunt();
 $message = '';
 $type_message = '';
 
-// Traitement du retour d'un livre
-if (isset($_GET['action']) && $_GET['action'] === 'retourner' && isset($_GET['id'])) {
-    $id = (int)$_GET['id'];
+// Traitement du retour de livre
+if (isset($_POST['action']) && $_POST['action'] === 'retourner' && isset($_POST['id'])) {
+    $id = (int)$_POST['id'];
     try {
         if ($empruntModel->retournerLivre($id)) {
             $message = "Livre retourné avec succès";
             $type_message = "success";
         } else {
-            $message = "Erreur lors du retour du livre";
+            $message = "Erreur lors du retour";
             $type_message = "danger";
         }
     } catch (Exception $e) {
         $message = $e->getMessage();
+        $type_message = "danger";
+    }
+}
+
+// Traitement du nettoyage des anciens retours
+if (isset($_POST['action']) && $_POST['action'] === 'nettoyer') {
+    try {
+        if ($empruntModel->nettoyerAnciensRetours()) {
+            $message = "Anciens retours supprimés avec succès";
+            $type_message = "success";
+        }
+    } catch (Exception $e) {
+        $message = "Erreur lors du nettoyage : " . $e->getMessage();
         $type_message = "danger";
     }
 }
@@ -30,26 +43,24 @@ if (isset($_GET['message'])) {
     $type_message = $_GET['type'] ?? 'info';
 }
 
-// Récupération du filtre de statut
-$filtre_statut = $_GET['statut'] ?? 'tous';
-
 // Récupération du terme de recherche
 $recherche = $_GET['recherche'] ?? '';
 
-// Récupération de la liste des emprunts selon les filtres
-if ($recherche) {
-    $emprunts = $empruntModel->rechercher($recherche);
-} elseif ($filtre_statut === 'en_cours') {
-    $emprunts = $empruntModel->listerEnCours();
-} elseif ($filtre_statut === 'termines') {
-    $emprunts = $empruntModel->listerTermines();
-} elseif ($filtre_statut === 'en_retard') {
-    $emprunts = $empruntModel->listerEnRetard();
-} else {
-    $emprunts = $empruntModel->listerTous();
+// Récupération des onglets
+$onglet_actif = $_GET['onglet'] ?? 'en_cours';
+
+// Récupération des données selon l'onglet
+switch ($onglet_actif) {
+    case 'retours':
+        $emprunts = $recherche ? $empruntModel->rechercher($recherche) : $empruntModel->listerRetoursRecents();
+        break;
+    case 'en_cours':
+    default:
+        $emprunts = $recherche ? $empruntModel->rechercher($recherche) : $empruntModel->listerEnCours();
+        break;
 }
 
-// Calcul des statistiques
+// Statistiques pour les badges
 $stats = $empruntModel->obtenirStatistiques();
 ?>
 
@@ -59,414 +70,311 @@ $stats = $empruntModel->obtenirStatistiques();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Emprunts - Bibliothèque</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            background-color: #f4f4f4;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        header {
-            background: #333;
-            color: white;
-            padding: 1rem 0;
-            margin-bottom: 20px;
-        }
-        
-        nav ul {
-            list-style: none;
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        nav ul li {
-            margin: 0 15px;
-        }
-        
-        nav ul li a {
-            color: white;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            transition: background 0.3s;
-        }
-        
-        nav ul li a:hover, nav ul li a.active {
-            background: #555;
-        }
-        
-        .card {
-            background: white;
-            padding: 30px;
-            margin: 20px 0;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        .btn {
-            display: inline-block;
-            background: #007bff;
-            color: white;
-            padding: 8px 16px;
-            text-decoration: none;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-            transition: background 0.3s;
-            font-size: 14px;
-        }
-        
-        .btn:hover {
-            background: #0056b3;
-        }
-        
-        .btn-success {
-            background: #28a745;
-        }
-        
-        .btn-success:hover {
-            background: #1e7e34;
-        }
-        
-        .btn-warning {
-            background: #ffc107;
-            color: #212529;
-        }
-        
-        .btn-warning:hover {
-            background: #e0a800;
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-        }
-        
-        .btn-danger:hover {
-            background: #c82333;
-        }
-        
-        .btn-info {
-            background: #17a2b8;
-        }
-        
-        .btn-info:hover {
-            background: #138496;
-        }
-        
-        .btn-sm {
-            padding: 5px 10px;
-            font-size: 12px;
-        }
-        
-        h1, h2, h3 {
-            color: #333;
-            margin-bottom: 15px;
-        }
-        
-        .alert {
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 5px;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .alert-danger {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .alert-info {
-            background: #cce7ff;
-            color: #004085;
-            border: 1px solid #b6d7ff;
-        }
-        
-        .search-bar {
-            background: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .search-bar input {
-            flex: 1;
-            min-width: 250px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        
-        .filter-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: white;
-            font-size: 14px;
-        }
-        
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        th {
-            background: #f8f9fa;
-            font-weight: bold;
-            color: #333;
-            font-size: 13px;
-        }
-        
-        .actions {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 2em;
-            font-weight: bold;
-        }
-        
-        .stat-en-cours { color: #007bff; }
-        .stat-en-retard { color: #dc3545; }
-        .stat-termines { color: #28a745; }
-        .stat-total { color: #6c757d; }
-        
-        .empty-message {
-            text-align: center;
-            color: #666;
-            font-style: italic;
-            padding: 40px;
-        }
-        
-        .header-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .status-badge {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-        
-        .status-en-cours {
-            background: #cce7ff;
-            color: #004085;
-        }
-        
-        .status-en-retard {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .status-termine {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .urgent {
-            background: #ffcccc !important;
-        }
-    </style>
+    <link rel="stylesheet" href="../assets/css/glassmorphism.css">
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1 style="text-align: center; margin-bottom: 20px;">📋 Gestion des Emprunts</h1>
-            <nav>
-                <ul>
-                    <li><a href="../index.php">🏠 Accueil</a></li>
-                    <li><a href="../livres/index.php">📖 Livres</a></li>
-                    <li><a href="../ecrivains/index.php">✍️ Écrivains</a></li>
-                    <li><a href="../genres/index.php">🏷️ Genres</a></li>
-                    <li><a href="../utilisateurs/index.php">👥 Utilisateurs</a></li>
-                    <li><a href="index.php" class="active">📋 Emprunts</a></li>
-                </ul>
-            </nav>
+    <!-- Navigation -->
+    <nav class="glass-nav">
+        <div class="nav-content">
+            <div class="nav-brand">
+                <h1>📚 BiblioProject</h1>
+            </div>
+            <div class="nav-links">
+                <a href="../index.php" class="nav-link">🏠 Accueil</a>
+                <a href="../livres/index.php" class="nav-link">📖 Livres</a>
+                <a href="../ecrivains/index.php" class="nav-link">✍️ Auteurs</a>
+                <a href="../genres/index.php" class="nav-link">🎭 Genres</a>
+                <a href="../utilisateurs/index.php" class="nav-link">👥 Utilisateurs</a>
+                <a href="index.php" class="nav-link active">📋 Emprunts</a>
+            </div>
         </div>
-    </header>
+    </nav>
 
     <div class="container">
+        <div class="page-header">
+            <h1 class="page-title">📋 Gestion des Emprunts</h1>
+            <p class="page-subtitle">Suivez les prêts de votre bibliothèque</p>
+        </div>
+
         <?php if ($message): ?>
             <div class="alert alert-<?= $type_message ?>">
                 <?= htmlspecialchars($message) ?>
             </div>
         <?php endif; ?>
 
-        <div class="header-actions">
-            <h2>Liste des Emprunts</h2>
-            <a href="ajouter.php" class="btn btn-success">➕ Nouvel emprunt</a>
-        </div>
-
-        <div class="search-bar">
-            <form method="GET" style="display: flex; width: 100%; gap: 10px; flex-wrap: wrap;">
-                <input type="text" name="recherche" placeholder="Rechercher par livre, auteur ou emprunteur..." 
-                       value="<?= htmlspecialchars($recherche) ?>">
-                <button type="submit" class="btn">🔍 Rechercher</button>
-                <?php if ($recherche): ?>
-                    <a href="index.php" class="btn btn-warning">❌ Effacer</a>
-                <?php endif; ?>
-            </form>
+        <!-- Actions rapides -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📚</div>
+                <div class="stat-content">
+                    <div class="stat-number"><?= $stats['en_cours'] ?></div>
+                    <div class="stat-label">En cours</div>
+                </div>
+            </div>
             
-            <div class="filter-buttons">
-                <a href="index.php?statut=tous" class="btn <?= $filtre_statut === 'tous' ? 'btn-info' : '' ?>">Tous</a>
-                <a href="index.php?statut=en_cours" class="btn <?= $filtre_statut === 'en_cours' ? 'btn-info' : '' ?>">En cours</a>
-                <a href="index.php?statut=en_retard" class="btn <?= $filtre_statut === 'en_retard' ? 'btn-danger' : '' ?>">En retard</a>
-                <a href="index.php?statut=termines" class="btn <?= $filtre_statut === 'termines' ? 'btn-success' : '' ?>">Terminés</a>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <div class="stat-number"><?= count($empruntModel->listerRetoursRecents()) ?></div>
+                    <div class="stat-label">Retours récents</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-content">
+                    <div class="stat-number"><?= $stats['en_retard'] ?></div>
+                    <div class="stat-label">En retard</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">✨</div>
+                <div class="stat-content">
+                    <a href="ajouter.php" class="btn btn-primary btn-full">
+                        ➕ Nouvel emprunt
+                    </a>
+                </div>
             </div>
         </div>
 
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-number stat-en-cours"><?= $stats['en_cours'] ?></div>
-                <div>Emprunt<?= $stats['en_cours'] > 1 ? 's' : '' ?> en cours</div>
+        <!-- Système d'onglets -->
+        <div class="tabs-container">
+            <!-- En-tête des onglets -->
+            <div class="tabs-header">
+                <button class="tab-button <?= $onglet_actif === 'en_cours' ? 'active' : '' ?>" 
+                        onclick="switchTab('en_cours')">
+                    📚 Emprunts en cours
+                    <span class="tab-badge"><?= $stats['en_cours'] ?></span>
+                </button>
+                <button class="tab-button <?= $onglet_actif === 'retours' ? 'active' : '' ?>" 
+                        onclick="switchTab('retours')">
+                    ✅ Retours récents
+                    <span class="tab-badge success"><?= count($empruntModel->listerRetoursRecents()) ?></span>
+                </button>
             </div>
-            <div class="stat-card">
-                <div class="stat-number stat-en-retard"><?= $stats['en_retard'] ?></div>
-                <div>En retard</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number stat-termines"><?= $stats['termines'] ?></div>
-                <div>Terminé<?= $stats['termines'] > 1 ? 's' : '' ?></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number stat-total"><?= $stats['total'] ?></div>
-                <div>Total</div>
-            </div>
-        </div>
 
-        <div class="card">
-            <?php if (empty($emprunts)): ?>
-                <div class="empty-message">
-                    <?php if ($recherche): ?>
-                        Aucun emprunt trouvé pour "<?= htmlspecialchars($recherche) ?>"
-                    <?php elseif ($filtre_statut !== 'tous'): ?>
-                        Aucun emprunt trouvé pour le filtre "<?= ucfirst(str_replace('_', ' ', $filtre_statut)) ?>"
+            <!-- Contenu des onglets -->
+            <div class="tab-content">
+                <!-- Recherche -->
+                <div class="search-container">
+                    <form method="GET" class="search-form">
+                        <input type="hidden" name="onglet" value="<?= $onglet_actif ?>">
+                        <div class="search-input-group">
+                            <input type="text" 
+                                   name="recherche" 
+                                   placeholder="🔍 Rechercher un emprunt..."
+                                   value="<?= htmlspecialchars($recherche) ?>"
+                                   class="search-input">
+                            <button type="submit" class="search-button">Rechercher</button>
+                        </div>
+                        <?php if ($recherche): ?>
+                            <div class="search-actions">
+                                <a href="index.php?onglet=<?= $onglet_actif ?>" class="btn btn-outline btn-sm">🔄 Réinitialiser</a>
+                                <span class="search-results">
+                                    <?= count($emprunts) ?> résultat(s) pour "<?= htmlspecialchars($recherche) ?>"
+                                </span>
+                            </div>
+                        <?php endif; ?>
+                    </form>
+                </div>
+
+                <!-- Panneau Emprunts en cours -->
+                <div id="tab-en-cours" class="tab-panel <?= $onglet_actif === 'en_cours' ? 'active' : '' ?>">
+                    <div class="tab-actions">
+                        <div class="tab-info">
+                            📊 <?= count($emprunts) ?> emprunt(s) en cours
+                        </div>
+                    </div>
+                    
+                    <!-- Tableau emprunts en cours -->
+                    <?php if (empty($emprunts)): ?>
+                        <div class="empty-state">
+                            <div class="empty-icon">📋</div>
+                            <h3>Aucun emprunt en cours</h3>
+                            <p>Tous les livres sont disponibles pour l'emprunt.</p>
+                            <a href="ajouter.php" class="btn btn-primary">➕ Nouvel emprunt</a>
+                        </div>
                     <?php else: ?>
-                        Aucun emprunt enregistré pour le moment.
+                        <table class="glass-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Livre</th>
+                                    <th>Utilisateur</th>
+                                    <th>Date d'emprunt</th>
+                                    <th>Date de retour prévue</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($emprunts as $emprunt): ?>
+                                    <tr>
+                                        <td>
+                                            <code style="background: rgba(255,255,255,0.3); padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                                                #<?= $emprunt['id_emprunt'] ?>
+                                            </code>
+                                        </td>
+                                        <td>
+                                            <div style="color: var(--text-dark);">
+                                                <strong>📖 <?= htmlspecialchars($emprunt['titre']) ?></strong>
+                                            </div>
+                                            <small style="color: var(--text-light);">par <?= htmlspecialchars($emprunt['auteur']) ?></small>
+                                        </td>
+                                        <td>
+                                            <div style="color: var(--text-dark);">
+                                                👤 <?= htmlspecialchars($emprunt['emprunteur']) ?>
+                                            </div>
+                                        </td>
+                                        <td><?= date('d/m/Y', strtotime($emprunt['date_emprunt'])) ?></td>
+                                        <td>
+                                            <?php 
+                                            $date_retour_prevue = strtotime($emprunt['date_retour_prevue']);
+                                            $est_en_retard = $emprunt['statut_detail'] === 'EN RETARD';
+                                            ?>
+                                            <span style="color: <?= $est_en_retard ? '#e74c3c' : 'var(--text-dark)' ?>">
+                                                <?= date('d/m/Y', $date_retour_prevue) ?>
+                                                <?php if ($est_en_retard): ?>
+                                                    ⚠️
+                                                <?php endif; ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?php if ($emprunt['statut_detail'] === 'EN RETARD'): ?>
+                                                <span class="badge badge-danger">⚠️ En retard</span>
+                                            <?php elseif ($emprunt['statut_detail'] === 'BIENTÔT DÛ'): ?>
+                                                <span class="badge badge-warning">⏰ Bientôt dû</span>
+                                            <?php else: ?>
+                                                <span class="badge badge-info">⏳ En cours</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <form method="POST" style="display: inline;">
+                                                    <input type="hidden" name="action" value="retourner">
+                                                    <input type="hidden" name="id" value="<?= $emprunt['id_emprunt'] ?>">
+                                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Confirmer le retour de ce livre ?')">
+                                                        ↩️ Retourner
+                                                    </button>
+                                                </form>
+                                                <a href="modifier.php?id=<?= $emprunt['id_emprunt'] ?>" class="btn btn-outline btn-sm">
+                                                    ✏️ Modifier
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     <?php endif; ?>
                 </div>
-            <?php else: ?>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Livre</th>
-                            <th>Auteur</th>
-                            <th>Emprunteur</th>
-                            <th>Date emprunt</th>
-                            <th>Date prévue</th>
-                            <th>Date retour</th>
-                            <th>Statut</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($emprunts as $emprunt): ?>
-                            <?php
-                            $en_retard = $emprunt['statut'] === 'en_cours' && strtotime($emprunt['date_retour_prevue']) < time();
-                            $bientot_du = $emprunt['statut'] === 'en_cours' && 
-                                         strtotime($emprunt['date_retour_prevue']) - time() <= 3 * 24 * 3600 &&
-                                         strtotime($emprunt['date_retour_prevue']) >= time();
-                            ?>
-                            <tr <?= $en_retard ? 'class="urgent"' : '' ?>>
-                                <td><?= $emprunt['id_emprunt'] ?></td>
-                                <td><strong><?= htmlspecialchars($emprunt['titre']) ?></strong></td>
-                                <td><?= htmlspecialchars($emprunt['auteur']) ?></td>
-                                <td><?= htmlspecialchars($emprunt['emprunteur']) ?></td>
-                                <td><?= date('d/m/Y', strtotime($emprunt['date_emprunt'])) ?></td>
-                                <td><?= date('d/m/Y', strtotime($emprunt['date_retour_prevue'])) ?></td>
-                                <td>
-                                    <?php if ($emprunt['date_retour_effective']): ?>
-                                        <?= date('d/m/Y', strtotime($emprunt['date_retour_effective'])) ?>
-                                    <?php else: ?>
-                                        <span style="color: #666; font-style: italic;">-</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if ($emprunt['statut'] === 'en_cours'): ?>
-                                        <?php if ($en_retard): ?>
-                                            <span class="status-badge status-en-retard">⚠️ EN RETARD</span>
-                                        <?php elseif ($bientot_du): ?>
-                                            <span class="status-badge status-en-cours">⏰ BIENTÔT DÛ</span>
-                                        <?php else: ?>
-                                            <span class="status-badge status-en-cours">📖 EN COURS</span>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <span class="status-badge status-termine">✅ TERMINÉ</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <div class="actions">
-                                        <?php if ($emprunt['statut'] === 'en_cours'): ?>
-                                            <a href="index.php?action=retourner&id=<?= $emprunt['id_emprunt'] ?>" 
-                                               class="btn btn-success btn-sm"
-                                               onclick="return confirm('Confirmer le retour de ce livre ?')">
-                                               📥 Retourner
-                                            </a>
-                                        <?php endif; ?>
-                                        <a href="modifier.php?id=<?= $emprunt['id_emprunt'] ?>" 
-                                           class="btn btn-warning btn-sm">✏️ Modifier</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
+
+                <!-- Panneau Retours récents -->
+                <div id="tab-retours" class="tab-panel <?= $onglet_actif === 'retours' ? 'active' : '' ?>">
+                    <div class="tab-actions">
+                        <div class="tab-info">
+                            📊 <?= count($empruntModel->listerRetoursRecents()) ?> retour(s) récent(s) (< 3 mois)
+                        </div>
+                        <form method="POST" style="display: inline;">
+                            <input type="hidden" name="action" value="nettoyer">
+                            <button type="submit" class="cleanup-button" onclick="return confirm('Supprimer tous les retours de plus de 3 mois ?')">
+                                🧹 Nettoyer archives
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Tableau retours récents -->
+                    <?php 
+                    $retours_recents = $onglet_actif === 'retours' ? $emprunts : $empruntModel->listerRetoursRecents();
+                    if (empty($retours_recents)): ?>
+                        <div class="empty-state">
+                            <div class="empty-icon">✅</div>
+                            <h3>Aucun retour récent</h3>
+                            <p>Aucun livre n'a été retourné dans les 3 derniers mois.</p>
+                        </div>
+                    <?php else: ?>
+                        <table class="glass-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Livre</th>
+                                    <th>Utilisateur</th>
+                                    <th>Date d'emprunt</th>
+                                    <th>Date de retour</th>
+                                    <th>Durée</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($retours_recents as $retour): ?>
+                                    <tr>
+                                        <td>
+                                            <code style="background: rgba(255,255,255,0.3); padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                                                #<?= $retour['id_emprunt'] ?>
+                                            </code>
+                                        </td>
+                                        <td>
+                                            <div style="color: var(--text-dark);">
+                                                <strong>📖 <?= htmlspecialchars($retour['titre']) ?></strong>
+                                            </div>
+                                            <small style="color: var(--text-light);">par <?= htmlspecialchars($retour['auteur']) ?></small>
+                                        </td>
+                                        <td>
+                                            <div style="color: var(--text-dark);">
+                                                👤 <?= htmlspecialchars($retour['emprunteur']) ?>
+                                            </div>
+                                        </td>
+                                        <td><?= date('d/m/Y', strtotime($retour['date_emprunt'])) ?></td>
+                                        <td><?= date('d/m/Y', strtotime($retour['date_retour_effective'])) ?></td>
+                                        <td>
+                                            <span class="badge badge-info">
+                                                <?= $retour['duree_emprunt'] ?> jours
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-success">✅ Retourné</span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- JavaScript pour les onglets -->
+    <script>
+        function switchTab(tabName) {
+            // Redirection avec paramètre onglet
+            const url = new URL(window.location);
+            url.searchParams.set('onglet', tabName);
+            
+            // Préserver la recherche si elle existe
+            const recherche = url.searchParams.get('recherche');
+            if (recherche) {
+                url.searchParams.set('recherche', recherche);
+            }
+            
+            window.location.href = url.toString();
+        }
+
+        // Confirmation pour les actions de retour
+        document.addEventListener('DOMContentLoaded', function() {
+            const formsRetour = document.querySelectorAll('form[method="POST"]');
+            formsRetour.forEach(form => {
+                const actionInput = form.querySelector('input[name="action"]');
+                if (actionInput && actionInput.value === 'retourner') {
+                    form.addEventListener('submit', function(e) {
+                        if (!confirm('Confirmer le retour de ce livre ?')) {
+                            e.preventDefault();
+                        }
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html>

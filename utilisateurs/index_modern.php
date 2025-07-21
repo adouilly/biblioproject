@@ -1,8 +1,8 @@
 <?php
 require_once '../config/database.php';
-require_once '../models/Ecrivain.php';
+require_once '../models/Utilisateur.php';
 
-$ecrivainModel = new Ecrivain();
+$utilisateurModel = new Utilisateur();
 
 $message = '';
 $type_message = '';
@@ -11,8 +11,8 @@ $type_message = '';
 if (isset($_GET['action']) && $_GET['action'] === 'supprimer' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
     try {
-        if ($ecrivainModel->supprimer($id)) {
-            $message = "Écrivain supprimé avec succès";
+        if ($utilisateurModel->supprimer($id)) {
+            $message = "Utilisateur supprimé avec succès";
             $type_message = "success";
         } else {
             $message = "Erreur lors de la suppression";
@@ -33,8 +33,8 @@ if (isset($_GET['message'])) {
 // Récupération du terme de recherche
 $recherche = $_GET['recherche'] ?? '';
 
-// Récupération de la liste des écrivains
-$ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainModel->listerTous();
+// Récupération de la liste des utilisateurs
+$utilisateurs = $recherche ? $utilisateurModel->rechercher($recherche) : $utilisateurModel->listerTous();
 ?>
 
 <!DOCTYPE html>
@@ -42,7 +42,7 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion des Écrivains - Bibliothèque</title>
+    <title>Gestion des Utilisateurs - Bibliothèque</title>
     <link rel="stylesheet" href="../assets/css/glassmorphism.css">
 </head>
 <body>
@@ -55,9 +55,9 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
             <div class="nav-links">
                 <a href="../index.php" class="nav-link">🏠 Accueil</a>
                 <a href="../livres/index.php" class="nav-link">📖 Livres</a>
-                <a href="index.php" class="nav-link active">✍️ Auteurs</a>
+                <a href="../ecrivains/index.php" class="nav-link">✍️ Auteurs</a>
                 <a href="../genres/index.php" class="nav-link">🎭 Genres</a>
-                <a href="../utilisateurs/index.php" class="nav-link">👥 Utilisateurs</a>
+                <a href="index.php" class="nav-link active">👥 Utilisateurs</a>
                 <a href="../emprunts/index.php" class="nav-link">📋 Emprunts</a>
             </div>
         </div>
@@ -65,8 +65,8 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
 
     <div class="container">
         <div class="page-header">
-            <h1 class="page-title">✍️ Gestion des Auteurs</h1>
-            <p class="page-subtitle">Gérez les auteurs de votre bibliothèque</p>
+            <h1 class="page-title">👥 Gestion des Utilisateurs</h1>
+            <p class="page-subtitle">Gérez les membres de votre bibliothèque</p>
         </div>
 
         <?php if ($message): ?>
@@ -78,18 +78,18 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
         <!-- Actions rapides -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon">👨‍💼</div>
+                <div class="stat-icon">👤</div>
                 <div class="stat-content">
-                    <div class="stat-number"><?= count($ecrivains) ?></div>
-                    <div class="stat-label">Auteurs total</div>
+                    <div class="stat-number"><?= count($utilisateurs) ?></div>
+                    <div class="stat-label">Utilisateurs</div>
                 </div>
             </div>
             
             <div class="stat-card">
-                <div class="stat-icon">🌍</div>
+                <div class="stat-icon">📧</div>
                 <div class="stat-content">
-                    <div class="stat-number"><?= count(array_unique(array_column($ecrivains, 'nationalite'))) ?></div>
-                    <div class="stat-label">Nationalités</div>
+                    <div class="stat-number"><?= count(array_filter($utilisateurs, fn($u) => !empty($u['email']))) ?></div>
+                    <div class="stat-label">Avec email</div>
                 </div>
             </div>
             
@@ -97,7 +97,7 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
                 <div class="stat-icon">✨</div>
                 <div class="stat-content">
                     <a href="ajouter.php" class="btn btn-primary btn-full">
-                        ➕ Ajouter un auteur
+                        ➕ Ajouter un utilisateur
                     </a>
                 </div>
             </div>
@@ -109,7 +109,7 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
                 <div class="search-input-group">
                     <input type="text" 
                            name="recherche" 
-                           placeholder="🔍 Rechercher un auteur..."
+                           placeholder="🔍 Rechercher un utilisateur..."
                            value="<?= htmlspecialchars($recherche) ?>"
                            class="search-input">
                     <button type="submit" class="search-button">Rechercher</button>
@@ -118,68 +118,81 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
                     <div class="search-actions">
                         <a href="index.php" class="btn btn-outline btn-sm">🔄 Réinitialiser</a>
                         <span class="search-results">
-                            <?= count($ecrivains) ?> résultat(s) pour "<?= htmlspecialchars($recherche) ?>"
+                            <?= count($utilisateurs) ?> résultat(s) pour "<?= htmlspecialchars($recherche) ?>"
                         </span>
                     </div>
                 <?php endif; ?>
             </form>
         </div>
 
-        <!-- Liste des auteurs -->
+        <!-- Liste des utilisateurs -->
         <div class="table-container">
-            <?php if (empty($ecrivains)): ?>
+            <?php if (empty($utilisateurs)): ?>
                 <div class="empty-state">
-                    <div class="empty-icon">📖</div>
-                    <h3>Aucun auteur trouvé</h3>
+                    <div class="empty-icon">👥</div>
+                    <h3>Aucun utilisateur trouvé</h3>
                     <p>
                         <?php if ($recherche): ?>
-                            Aucun auteur ne correspond à votre recherche.
+                            Aucun utilisateur ne correspond à votre recherche.
                         <?php else: ?>
-                            Commencez par ajouter des auteurs à votre bibliothèque.
+                            Commencez par ajouter des utilisateurs à votre bibliothèque.
                         <?php endif; ?>
                     </p>
-                    <a href="ajouter.php" class="btn btn-primary">➕ Ajouter le premier auteur</a>
+                    <a href="ajouter.php" class="btn btn-primary">➕ Ajouter le premier utilisateur</a>
                 </div>
             <?php else: ?>
                 <table class="glass-table">
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Nom</th>
-                            <th>Prénom</th>
-                            <th>Nationalité</th>
-                            <th>Date de naissance</th>
+                            <th>Nom Complet</th>
+                            <th>Email</th>
+                            <th>Téléphone</th>
+                            <th>Date d'inscription</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($ecrivains as $ecrivain): ?>
+                        <?php foreach ($utilisateurs as $utilisateur): ?>
                             <tr>
                                 <td>
                                     <code style="background: rgba(255,255,255,0.3); padding: 2px 6px; border-radius: 4px; font-size: 11px;">
-                                        #<?= $ecrivain['id_ecrivain'] ?>
+                                        #<?= $utilisateur['id_utilisateur'] ?>
                                     </code>
                                 </td>
                                 <td>
                                     <div style="font-weight: 600; color: var(--text-dark);">
-                                        <?= htmlspecialchars($ecrivain['nom']) ?>
+                                        <?= htmlspecialchars($utilisateur['prenom'] . ' ' . $utilisateur['nom']) ?>
                                     </div>
                                 </td>
-                                <td><?= htmlspecialchars($ecrivain['prenom']) ?></td>
                                 <td>
-                                    <div style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block;">
-                                        🌍 <?= htmlspecialchars($ecrivain['nationalite']) ?>
-                                    </div>
+                                    <?php if ($utilisateur['email']): ?>
+                                        <a href="mailto:<?= htmlspecialchars($utilisateur['email']) ?>" 
+                                           style="color: var(--primary-color); text-decoration: none;">
+                                            📧 <?= htmlspecialchars($utilisateur['email']) ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-light); font-style: italic;">Non renseigné</span>
+                                    <?php endif; ?>
                                 </td>
-                                <td><?= $ecrivain['date_naissance'] ? date('d/m/Y', strtotime($ecrivain['date_naissance'])) : '-' ?></td>
+                                <td>
+                                    <?php if ($utilisateur['telephone']): ?>
+                                        <span class="badge badge-info">
+                                            📞 <?= htmlspecialchars($utilisateur['telephone']) ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-light); font-style: italic;">Non renseigné</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= $utilisateur['date_inscription'] ? date('d/m/Y', strtotime($utilisateur['date_inscription'])) : '-' ?></td>
                                 <td>
                                     <div class="action-buttons">
-                                        <a href="modifier.php?id=<?= $ecrivain['id_ecrivain'] ?>" class="btn btn-secondary btn-sm">
+                                        <a href="modifier.php?id=<?= $utilisateur['id_utilisateur'] ?>" class="btn btn-secondary btn-sm">
                                             ✏️ Modifier
                                         </a>
-                                        <a href="index.php?action=supprimer&id=<?= $ecrivain['id_ecrivain'] ?>" 
+                                        <a href="index.php?action=supprimer&id=<?= $utilisateur['id_utilisateur'] ?>" 
                                            class="btn btn-outline btn-sm"
-                                           onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet auteur ? Cette action supprimera également tous ses livres.')">
+                                           onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action supprimera également tous ses emprunts.')">
                                             🗑️ Supprimer
                                         </a>
                                     </div>

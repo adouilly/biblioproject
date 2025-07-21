@@ -43,6 +43,40 @@ class Emprunt {
         return $stmt->fetchAll();
     }
 
+    // Lister les retours récents (moins de 3 mois)
+    public function listerRetoursRecents() {
+        $sql = "SELECT 
+                    emp.id_emprunt,
+                    emp.date_emprunt,
+                    emp.date_retour_prevue,
+                    emp.date_retour_effective,
+                    DATEDIFF(emp.date_retour_effective, emp.date_emprunt) AS duree_emprunt,
+                    'RENDU' AS statut_detail,
+                    l.titre,
+                    CONCAT(e.prenom, ' ', e.nom) AS auteur,
+                    CONCAT(u.prenom, ' ', u.nom) AS emprunteur,
+                    u.email
+                FROM emprunts emp
+                JOIN livres l ON emp.id_livre = l.id_livre
+                JOIN ecrivains e ON l.id_ecrivain = e.id_ecrivain
+                JOIN utilisateurs u ON emp.id_utilisateur = u.id_utilisateur
+                WHERE emp.statut = 'rendu' 
+                AND emp.date_retour_effective >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+                ORDER BY emp.date_retour_effective DESC";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    // Nettoyer les anciens retours (supprimer ceux de plus de 3 mois)
+    public function nettoyerAnciensRetours() {
+        $sql = "DELETE FROM emprunts 
+                WHERE statut = 'rendu' 
+                AND date_retour_effective < DATE_SUB(CURDATE(), INTERVAL 3 MONTH)";
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute();
+    }
+
     // Enregistrer un emprunt
     public function enregistrer($id_livre, $id_utilisateur, $date_emprunt = null) {
         // Vérifier si le livre est disponible
@@ -62,6 +96,36 @@ class Emprunt {
                 VALUES (?, ?, ?, ?)";
         $stmt = $this->pdo->prepare($sql);
         $result = $stmt->execute([$id_livre, $id_utilisateur, $date_emprunt, $date_retour_prevue]);
+        
+        if ($result) {
+            // Mettre à jour la disponibilité du livre
+            $this->mettreAJourDisponibiliteLivre($id_livre, false);
+        }
+        
+        return $result;
+    }
+
+    // Ajouter un emprunt (alias pour enregistrer avec plus de paramètres)
+    public function ajouter($id_livre, $id_utilisateur, $date_emprunt = null, $date_retour_prevue = null, $remarques = null) {
+        // Vérifier si le livre est disponible
+        if (!$this->livreEstDisponible($id_livre)) {
+            throw new Exception("Ce livre n'est pas disponible pour l'emprunt");
+        }
+        
+        // Date d'emprunt par défaut = aujourd'hui
+        if (!$date_emprunt) {
+            $date_emprunt = date('Y-m-d');
+        }
+        
+        // Date de retour prévue par défaut = 15 jours après l'emprunt
+        if (!$date_retour_prevue) {
+            $date_retour_prevue = date('Y-m-d', strtotime($date_emprunt . ' + 15 days'));
+        }
+        
+        $sql = "INSERT INTO {$this->table} (id_livre, id_utilisateur, date_emprunt, date_retour_prevue, remarques) 
+                VALUES (?, ?, ?, ?, ?)";
+        $stmt = $this->pdo->prepare($sql);
+        $result = $stmt->execute([$id_livre, $id_utilisateur, $date_emprunt, $date_retour_prevue, $remarques]);
         
         if ($result) {
             // Mettre à jour la disponibilité du livre
@@ -107,6 +171,11 @@ class Emprunt {
         }
         
         return $result;
+    }
+
+    // Alias pour marquerRendu (pour cohérence avec l'interface)
+    public function retournerLivre($id_emprunt, $date_retour = null) {
+        return $this->marquerRendu($id_emprunt, $date_retour);
     }
 
     // Vérifier si un livre est disponible
@@ -228,6 +297,34 @@ class Emprunt {
         $stats['total'] = $stmt->fetchColumn();
         
         return $stats;
+    }
+
+    // Rechercher des emprunts
+    public function rechercher($terme) {
+        $sql = "SELECT * FROM v_emprunts_en_cours 
+                WHERE titre LIKE ? OR auteur LIKE ? OR emprunteur LIKE ?
+                UNION ALL
+                SELECT 
+                    emp.id_emprunt,
+                    emp.date_emprunt,
+                    emp.date_retour_prevue,
+                    DATEDIFF(emp.date_retour_effective, emp.date_emprunt) AS jours_restants,
+                    'RENDU' AS statut_detail,
+                    l.titre,
+                    CONCAT(e.prenom, ' ', e.nom) AS auteur,
+                    CONCAT(u.prenom, ' ', u.nom) AS emprunteur,
+                    u.email
+                FROM emprunts emp
+                JOIN livres l ON emp.id_livre = l.id_livre
+                JOIN ecrivains e ON l.id_ecrivain = e.id_ecrivain
+                JOIN utilisateurs u ON emp.id_utilisateur = u.id_utilisateur
+                WHERE emp.statut = 'rendu' 
+                AND (l.titre LIKE ? OR CONCAT(e.prenom, ' ', e.nom) LIKE ? OR CONCAT(u.prenom, ' ', u.nom) LIKE ?)
+                ORDER BY date_emprunt DESC";
+        $terme = "%{$terme}%";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$terme, $terme, $terme, $terme, $terme, $terme]);
+        return $stmt->fetchAll();
     }
 }
 ?>

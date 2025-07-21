@@ -149,6 +149,7 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
                             <th>Prénom</th>
                             <th>Nationalité</th>
                             <th>Date de naissance</th>
+                            <th>Biographie</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -167,11 +168,20 @@ $ecrivains = $recherche ? $ecrivainModel->rechercher($recherche) : $ecrivainMode
                                 </td>
                                 <td><?= htmlspecialchars($ecrivain['prenom']) ?></td>
                                 <td>
-                                    <div style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block;">
+                                    <span class="badge badge-info">
                                         🌍 <?= htmlspecialchars($ecrivain['nationalite']) ?>
-                                    </div>
+                                    </span>
                                 </td>
                                 <td><?= $ecrivain['date_naissance'] ? date('d/m/Y', strtotime($ecrivain['date_naissance'])) : '-' ?></td>
+                                <td>
+                                    <?php if ($ecrivain['biographie']): ?>
+                                        <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            <?= htmlspecialchars(substr($ecrivain['biographie'], 0, 50)) ?><?= strlen($ecrivain['biographie']) > 50 ? '...' : '' ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-light); font-style: italic;">Aucune biographie</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <div class="action-buttons">
                                         <a href="modifier.php?id=<?= $ecrivain['id_ecrivain'] ?>" class="btn btn-secondary btn-sm">
