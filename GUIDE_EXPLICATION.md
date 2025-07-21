@@ -2,7 +2,8 @@
 
 ## 📝 Vue d'ensemble du Projet
 
-**BiblioProject** est un système complet de gestion de bibliothèque développé en PHP avec une architecture MVC moderne et une interface glassmorphism. Il permet de gérer intégralement les livres, écrivains, genres, utilisateurs et emprunts d'une bibliothèque.
+**BiblioProject** est un système complet de gestion de bibliothèque développé en PHP avec une architecture MVC moderne et une interface glassmorphism. 
+Il permet de gérer intégralement les livres, écrivains, genres, utilisateurs et emprunts d'une bibliothèque.
 
 ---
 
@@ -26,6 +27,14 @@
 - Un livre ne peut être emprunté que s'il est disponible
 - La disponibilité est mise à jour automatiquement
 - L'intégrité référentielle est respectée via les clés étrangères
+
+### 🔄 Mécanisme de disponibilité automatique :
+**Fonctionnement intelligent :**
+1. **Lors d'un emprunt** → Le livre devient automatiquement indisponible (`disponible = 0`)
+2. **Lors d'un retour** → Le système vérifie s'il reste d'autres emprunts en cours
+3. **Si aucun autre emprunt** → Le livre redevient automatiquement disponible (`disponible = 1`)
+4. **Méthode centrale** : `mettreAJourDisponibiliteLivre()` appelée à chaque transaction
+5. **Avantage** : Cohérence des données garantie en temps réel sans intervention manuelle
 
 ---
 
@@ -171,6 +180,14 @@ BiblioProject/
 - Emails valides
 - Données obligatoires contrôlées
 
+### 🔒 Test de sécurité réalisé
+**Test d'injection SQL dans le champ "remarques" :**
+- **Injection tentée** : `'; UPDATE utilisateurs SET prenom = 'jojo' WHERE 1=1; --`
+- **Objectif malveillant** : Modifier tous les prénoms des utilisateurs
+- **Résultat** : ✅ **Échec de l'attaque** - L'injection est traitée comme une simple chaîne de caractères
+- **Preuve de robustesse** : Grâce aux requêtes préparées PDO, aucune requête malveillante n'est exécutée
+- **Conclusion** : Le code résiste parfaitement aux injections SQL
+
 ---
 
 ## 🚀 Fonctionnalités Avancées
@@ -200,7 +217,7 @@ BiblioProject/
 "J'ai structuré l'application selon le pattern MVC : les modèles gèrent l'accès aux données via PDO, les vues présentent l'interface glassmorphism, et les contrôleurs traitent la logique métier."
 
 ### 2. Sécurité PDO
-"Toutes les requêtes utilisent des requêtes préparées pour éviter les injections SQL, et les données sont filtrées avec htmlspecialchars contre les attaques XSS."
+"Toutes les requêtes utilisent des requêtes préparées pour éviter les injections SQL, et les données sont filtrées avec htmlspecialchars contre les attaques XSS. J'ai testé la robustesse en tentant une injection SQL malveillante dans le champ remarques : `'; UPDATE utilisateurs SET prenom = 'jojo' WHERE 1=1; --`. L'attaque a échoué car PDO traite cette injection comme une simple chaîne de caractères, prouvant l'efficacité de la protection."
 
 ### 3. Design moderne
 "L'interface utilise le glassmorphism avec des effets de transparence et des dégradés, créant une expérience utilisateur moderne et professionnelle."
