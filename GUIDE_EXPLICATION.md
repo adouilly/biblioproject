@@ -197,6 +197,7 @@ BiblioProject/
 - Statut temps réel (en cours, en retard, rendu)
 - Historique complet des transactions
 - Recherche multicritères
+- **🆕 Emprunts multiples** : Un utilisateur peut emprunter plusieurs livres simultanément
 
 ### Interface de données enrichies
 - Affichage des nationalités avec badges colorés
@@ -227,4 +228,7 @@ BiblioProject/
 
 ### 5. Expérience utilisateur
 "Navigation intuitive avec retours visuels, messages contextuels, et design responsive pour tous les appareils."
+
+### 6. Emprunts multiples
+"Le système permet à un utilisateur d'emprunter plusieurs livres simultanément via une interface de sélection multiple. Chaque livre sélectionné génère un emprunt distinct avec les mêmes paramètres (dates, durée), permettant une gestion granulaire tout en simplifiant la saisie pour l'utilisateur."
 

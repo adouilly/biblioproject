@@ -12,24 +12,33 @@ class Emprunt {
 
     // Lister tous les emprunts
     public function listerTous() {
-        $sql = "SELECT * FROM v_emprunts_en_cours 
-                UNION ALL
-                SELECT 
+        $sql = "SELECT 
                     emp.id_emprunt,
                     emp.date_emprunt,
                     emp.date_retour_prevue,
-                    DATEDIFF(emp.date_retour_effective, emp.date_emprunt) AS jours_restants,
-                    'RENDU' AS statut_detail,
+                    CASE 
+                        WHEN emp.statut = 'en_cours' AND CURDATE() > emp.date_retour_prevue THEN DATEDIFF(CURDATE(), emp.date_retour_prevue)
+                        WHEN emp.statut = 'en_cours' THEN DATEDIFF(emp.date_retour_prevue, CURDATE())
+                        ELSE DATEDIFF(emp.date_retour_effective, emp.date_emprunt)
+                    END AS jours_restants,
+                    CASE 
+                        WHEN emp.statut = 'en_cours' AND CURDATE() > emp.date_retour_prevue THEN 'EN RETARD'
+                        WHEN emp.statut = 'en_cours' AND DATEDIFF(emp.date_retour_prevue, CURDATE()) <= 3 THEN 'BIENTÔT DÛ'
+                        WHEN emp.statut = 'en_cours' THEN 'EN COURS'
+                        ELSE 'RENDU'
+                    END AS statut_detail,
                     l.titre,
                     CONCAT(e.prenom, ' ', e.nom) AS auteur,
                     CONCAT(u.prenom, ' ', u.nom) AS emprunteur,
-                    u.email
+                    u.email,
+                    emp.statut,
+                    emp.date_retour_effective,
+                    emp.remarques
                 FROM emprunts emp
                 JOIN livres l ON emp.id_livre = l.id_livre
                 JOIN ecrivains e ON l.id_ecrivain = e.id_ecrivain
                 JOIN utilisateurs u ON emp.id_utilisateur = u.id_utilisateur
-                WHERE emp.statut = 'rendu'
-                ORDER BY date_emprunt DESC";
+                ORDER BY emp.date_emprunt DESC";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();
@@ -37,7 +46,31 @@ class Emprunt {
 
     // Lister les emprunts en cours
     public function listerEnCours() {
-        $sql = "SELECT * FROM v_emprunts_en_cours ORDER BY date_emprunt DESC";
+        $sql = "SELECT 
+                    emp.id_emprunt,
+                    emp.date_emprunt,
+                    emp.date_retour_prevue,
+                    CASE 
+                        WHEN CURDATE() > emp.date_retour_prevue THEN DATEDIFF(CURDATE(), emp.date_retour_prevue)
+                        ELSE DATEDIFF(emp.date_retour_prevue, CURDATE())
+                    END AS jours_restants,
+                    CASE 
+                        WHEN CURDATE() > emp.date_retour_prevue THEN 'EN RETARD'
+                        WHEN DATEDIFF(emp.date_retour_prevue, CURDATE()) <= 3 THEN 'BIENTÔT DÛ'
+                        ELSE 'EN COURS'
+                    END AS statut_detail,
+                    l.titre,
+                    CONCAT(e.prenom, ' ', e.nom) AS auteur,
+                    CONCAT(u.prenom, ' ', u.nom) AS emprunteur,
+                    u.email,
+                    emp.statut,
+                    emp.remarques
+                FROM emprunts emp
+                JOIN livres l ON emp.id_livre = l.id_livre
+                JOIN ecrivains e ON l.id_ecrivain = e.id_ecrivain
+                JOIN utilisateurs u ON emp.id_utilisateur = u.id_utilisateur
+                WHERE emp.statut = 'en_cours'
+                ORDER BY emp.date_emprunt DESC";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();
@@ -208,9 +241,24 @@ class Emprunt {
 
     // Obtenir les emprunts en retard
     public function obtenirEnRetard() {
-        $sql = "SELECT * FROM v_emprunts_en_cours 
-                WHERE statut_detail = 'EN RETARD'
-                ORDER BY date_retour_prevue";
+        $sql = "SELECT 
+                    emp.id_emprunt,
+                    emp.date_emprunt,
+                    emp.date_retour_prevue,
+                    DATEDIFF(CURDATE(), emp.date_retour_prevue) AS jours_restants,
+                    'EN RETARD' AS statut_detail,
+                    l.titre,
+                    CONCAT(e.prenom, ' ', e.nom) AS auteur,
+                    CONCAT(u.prenom, ' ', u.nom) AS emprunteur,
+                    u.email,
+                    emp.statut,
+                    emp.remarques
+                FROM emprunts emp
+                JOIN livres l ON emp.id_livre = l.id_livre
+                JOIN ecrivains e ON l.id_ecrivain = e.id_ecrivain
+                JOIN utilisateurs u ON emp.id_utilisateur = u.id_utilisateur
+                WHERE emp.statut = 'en_cours' AND emp.date_retour_prevue < CURDATE()
+                ORDER BY emp.date_retour_prevue";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();
@@ -363,29 +411,37 @@ class Emprunt {
 
     // Rechercher des emprunts
     public function rechercher($terme) {
-        $sql = "SELECT * FROM v_emprunts_en_cours 
-                WHERE titre LIKE ? OR auteur LIKE ? OR emprunteur LIKE ?
-                UNION ALL
-                SELECT 
+        $sql = "SELECT 
                     emp.id_emprunt,
                     emp.date_emprunt,
                     emp.date_retour_prevue,
-                    DATEDIFF(emp.date_retour_effective, emp.date_emprunt) AS jours_restants,
-                    'RENDU' AS statut_detail,
+                    CASE 
+                        WHEN emp.statut = 'en_cours' AND CURDATE() > emp.date_retour_prevue THEN DATEDIFF(CURDATE(), emp.date_retour_prevue)
+                        WHEN emp.statut = 'en_cours' THEN DATEDIFF(emp.date_retour_prevue, CURDATE())
+                        ELSE DATEDIFF(emp.date_retour_effective, emp.date_emprunt)
+                    END AS jours_restants,
+                    CASE 
+                        WHEN emp.statut = 'en_cours' AND CURDATE() > emp.date_retour_prevue THEN 'EN RETARD'
+                        WHEN emp.statut = 'en_cours' AND DATEDIFF(emp.date_retour_prevue, CURDATE()) <= 3 THEN 'BIENTÔT DÛ'
+                        WHEN emp.statut = 'en_cours' THEN 'EN COURS'
+                        ELSE 'RENDU'
+                    END AS statut_detail,
                     l.titre,
                     CONCAT(e.prenom, ' ', e.nom) AS auteur,
                     CONCAT(u.prenom, ' ', u.nom) AS emprunteur,
-                    u.email
+                    u.email,
+                    emp.statut,
+                    emp.date_retour_effective,
+                    emp.remarques
                 FROM emprunts emp
                 JOIN livres l ON emp.id_livre = l.id_livre
                 JOIN ecrivains e ON l.id_ecrivain = e.id_ecrivain
                 JOIN utilisateurs u ON emp.id_utilisateur = u.id_utilisateur
-                WHERE emp.statut = 'rendu' 
-                AND (l.titre LIKE ? OR CONCAT(e.prenom, ' ', e.nom) LIKE ? OR CONCAT(u.prenom, ' ', u.nom) LIKE ?)
-                ORDER BY date_emprunt DESC";
+                WHERE l.titre LIKE ? OR CONCAT(e.prenom, ' ', e.nom) LIKE ? OR CONCAT(u.prenom, ' ', u.nom) LIKE ?
+                ORDER BY emp.date_emprunt DESC";
         $terme = "%{$terme}%";
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$terme, $terme, $terme, $terme, $terme, $terme]);
+        $stmt->execute([$terme, $terme, $terme]);
         return $stmt->fetchAll();
     }
 }
