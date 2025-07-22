@@ -120,25 +120,25 @@ BiblioProject/
 
 ## 🔧 Fonctionnalités CRUD Complètes
 
-### **C**reate (Créer)
+### **Create (Créer)
 - ✅ Ajouter des livres avec association écrivain/genre
 - ✅ Enregistrer de nouveaux écrivains avec nationalité
 - ✅ Créer des genres littéraires
 - ✅ Inscrire des utilisateurs
 - ✅ Enregistrer des emprunts avec validation
 
-### **R**ead (Lire)
+### **Read (Lire)
 - ✅ Lister tous les éléments avec jointures
 - ✅ Afficher les détails complets
 - ✅ Rechercher et filtrer
 - ✅ Statistiques et états
 
-### **U**pdate (Modifier)
+### **Update (Modifier)
 - ✅ Modifier toutes les propriétés des entités
 - ✅ Validation des données
 - ✅ Mise à jour automatique des disponibilités
 
-### **D**elete (Supprimer)
+### **Delete (Supprimer)
 - ✅ Suppression avec vérification des contraintes
 - ✅ Messages d'erreur explicites
 - ✅ Préservation de l'intégrité référentielle
