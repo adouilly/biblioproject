@@ -228,6 +228,3 @@ BiblioProject/
 ### 5. Expérience utilisateur
 "Navigation intuitive avec retours visuels, messages contextuels, et design responsive pour tous les appareils."
 
----
-
-Ce guide vous permettra d'expliquer clairement votre projet en montrant la maîtrise technique, la réflexion architecturale et l'attention portée à l'expérience utilisateur ! 🎓

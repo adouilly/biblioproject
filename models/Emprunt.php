@@ -237,6 +237,68 @@ class Emprunt {
         return $stmt->fetch();
     }
 
+    // Modifier un emprunt
+    public function modifier($id_emprunt, $date_emprunt, $date_retour_prevue, $date_retour_effective = null, $remarques = null) {
+        try {
+            $this->pdo->beginTransaction();
+            
+            // Récupérer l'ancien emprunt pour connaître l'ancien statut
+            $ancienEmprunt = $this->obtenirParId($id_emprunt);
+            if (!$ancienEmprunt) {
+                throw new Exception("Emprunt introuvable");
+            }
+
+            // Déterminer le nouveau statut
+            $statut = ($date_retour_effective) ? 'rendu' : 'en_cours';
+            
+            // Mise à jour de l'emprunt
+            $sql = "UPDATE {$this->table} 
+                    SET date_emprunt = ?, 
+                        date_retour_prevue = ?, 
+                        date_retour_effective = ?, 
+                        remarques = ?,
+                        statut = ?
+                    WHERE id_emprunt = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $result = $stmt->execute([
+                $date_emprunt, 
+                $date_retour_prevue, 
+                $date_retour_effective, 
+                $remarques,
+                $statut,
+                $id_emprunt
+            ]);
+
+            if ($result) {
+                // Mettre à jour la disponibilité du livre si le statut a changé
+                if ($ancienEmprunt['statut'] !== $statut) {
+                    if ($statut === 'rendu') {
+                        // Vérifier s'il reste d'autres emprunts en cours pour ce livre
+                        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE id_livre = ? AND statut = 'en_cours' AND id_emprunt != ?";
+                        $stmt = $this->pdo->prepare($sql);
+                        $stmt->execute([$ancienEmprunt['id_livre'], $id_emprunt]);
+                        $autresEmprunts = $stmt->fetchColumn();
+                        
+                        // Le livre devient disponible seulement s'il n'y a plus d'autres emprunts en cours
+                        $this->mettreAJourDisponibiliteLivre($ancienEmprunt['id_livre'], $autresEmprunts == 0);
+                    } else {
+                        // Le livre devient indisponible
+                        $this->mettreAJourDisponibiliteLivre($ancienEmprunt['id_livre'], false);
+                    }
+                }
+                
+                $this->pdo->commit();
+                return true;
+            } else {
+                $this->pdo->rollBack();
+                return false;
+            }
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
     // Vérifier si un utilisateur a déjà emprunté un livre (et ne l'a pas encore rendu)
     public function utilisateurADejaPmprunte($id_utilisateur, $id_livre) {
         $sql = "SELECT COUNT(*) FROM {$this->table} 
